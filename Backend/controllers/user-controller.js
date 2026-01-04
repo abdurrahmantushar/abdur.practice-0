@@ -2,13 +2,11 @@ import argon2 from 'argon2'
 import  jwt  from 'jsonwebtoken'
 
 import UserModel from '../Models/User-Model.js'
-import { sendEmail } from '../config/send-Email.js'
-import { VerifyEmailTemplate } from '../templates/email-templates.js'
 import { accessToken } from '../tokens/accessToken.js'
 import { refreshToken } from '../tokens/refreshToken.js'
 import { uploadImageCloud } from '../Cloudenary/image-cloud.js'
-import { generateOtp } from '../tokens/generetOtp.js'
-import { VerifyForgotPasswordTemplate } from '../templates/forgotpass-email-template.js'
+
+
 
 
 
@@ -48,15 +46,7 @@ export const registerUserController = async (req, res) => {
         const newUser = new UserModel(payload)
         const save = await newUser.save()
 
-        const verifyEmailUrl = `${process.env.FRONTEND_URL}/verify-email?code=${save?._id}`
-         await sendEmail({
-            sendTo: email,
-            subject: 'Verify Email from Abdur World',
-            html: VerifyEmailTemplate({
-                name,
-                verifyEmailUrl
-            })
-        })
+
         return res.json({
             message: 'User created Successfully',
             error : false,
@@ -73,34 +63,6 @@ export const registerUserController = async (req, res) => {
         })
     }
 }
-export const verifyEmailController = async (req,res) =>{
-    try {
-        const {code} = req.query
-        const user = await UserModel.findOne({_id : code})
-        
-        if(!user){
-            return res.status(400).json({
-                message : 'invalid Code',
-                error : true,
-                success : false
-            })
-        }
-    const updateUser= await UserModel.updateOne({ _id : code},{
-        verify_email : true
-    })
-    return res.json({
-        message : 'Verification Done',
-        error : false,
-        success : true
-    })
-    } catch (error) {
-        return res.status(500).json({
-            message : error.message || error,
-            error : true,
-            success : false
-        }) 
-    }
-}
 export const loginController= async (req,res)=>{
     try {
         const { email, password}= req.body
@@ -112,11 +74,6 @@ export const loginController= async (req,res)=>{
                 success : false
             })
         }
-        // if (!user.verify_email) {
-        //         return res.status(400).json({
-        //         message: 'Please verify your email first'
-        //          })
-        // }
         if(user.status !== 'Active'){
             return res.status(400).json({
                 message : 'Your account unactive please contact Admin',
@@ -281,142 +238,6 @@ export const updateUserDetails= async (req,res)=>{
         })
     } catch (error) {
         return res.status(500).json({
-            message : error.message || error,
-            error : true,
-            success : false
-        })
-    }
-}
-export const forgotPasswordController = async (req, res)=>{
-    try {
-        const {email} = req.body
-        const user = await UserModel.findOne({email})
-        if (!user){
-            return res.json({
-                message : 'Email not register yet',
-                error: true,
-                success: false
-            })
-        }
-        const otp = generateOtp()
-        const expireTime = new Date(Date.now() + 60 * 60 * 1000)
-
-        await UserModel.findByIdAndUpdate(user._id,
-            { forgot_password_otp : otp,
-                forgot_password_expiry : expireTime
-            });
-        
-        await sendEmail({
-            sendTo : email,
-            subject : 'Reset Password',
-            html : VerifyForgotPasswordTemplate({
-                name : user.name,
-                otp 
-            }) 
-        })
-        
-        return res.json({
-            message : 'Check your email',
-            success: true,
-            error: false
-        })
-    } catch (error) {
-        return res.status(500).json({
-            message : error.message || error,
-            error : true,
-            success : false
-        })
-    }
-}
-export const verifyForgotOtpController = async (req,res)=>{
-    try {
-        const {email , otp } = req.body
-        if(!email || !otp) {
-            return res.json({
-                message : 'Provide valid email or otp',
-                error : true,
-                success : false
-            })
-        }
-        const user = await UserModel.findOne({email})
-        if (!user){
-            return res.json({
-                message : 'Email not register yet',
-                error: true,
-                success: false
-            })
-        }
-
-        const currenTime = new Date()
-        if(user.forgot_password_expiry <currenTime){
-            return res.status(402).json({
-                message : 'Otp is expired',
-                error : true,
-                success : false
-            })
-        }
-        if(otp !== user.forgot_password_otp){
-                return res.status(402).json({
-                message : 'Invalid Otp',
-                error : true,
-                success : false
-            })
-        }
-
-        return res.json({
-            message : 'Verify Otp succssful',
-            error: false,
-            success : true
-        })
-    } catch (error) {
-        return res.status(500).json({
-            message : error.message || error,
-            error : true,
-            success : false
-        })
-    }
-}
-export const resetPasswordController = async (req,res)=>{
-    try {
-        const { email , newPassword, confirmPassword} = req.body
-        if(!email || !newPassword || !confirmPassword){
-            return res.status(400).json({
-                message : 'Provide all required filed',
-                error :true,
-                success : false
-            })
-        }
-        const user = await UserModel.findOne({email})
-        if(!user){
-            return res.status(400).json({
-                message: 'User not register yet'
-            })
-        }
-        if(newPassword !== confirmPassword){
-            return res.status(400).json({
-                message : 'New passowrd & Confirm Password not matching',
-                error: false,
-                susccess: true,
-            })
-        }
-            const hashedPassword = await argon2.hash(newPassword, {
-            type: argon2.argon2id,
-            memoryCost: 2 ** 16,
-            timeCost: 3,
-            parallelism: 1
-        })
-        await UserModel.findByIdAndUpdate(user._id,{
-            password : hashedPassword,
-            forgot_password_otp: null,
-            forgot_password_expiry: null
-        })
-        return res.json({
-            message : 'Password reset done',
-                error: false,
-                success: true,
-        })
-    } catch (error) {
-            return res.status(500).json({
             message : error.message || error,
             error : true,
             success : false
