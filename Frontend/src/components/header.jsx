@@ -101,7 +101,9 @@ export const HeaderBox = () => {
 
           ):(
             
-            <Link to={'/register'}>Register</Link>
+            <Link to={'/register'}
+            className=' font-bold font-mono text-xl '
+            >Register</Link>
           )
         }
 

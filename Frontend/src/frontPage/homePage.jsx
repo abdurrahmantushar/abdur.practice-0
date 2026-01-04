@@ -2,8 +2,8 @@
 
 export const HomePage=()=> {
   return (
-    <div className="">
-      Hi i am Home
+    <div className=" text-8xl font-mono  ">
+      Helle welcome 
     </div>
   )
 }
